@@ -19,6 +19,9 @@ namespace Microsoft.CodeAnalysis.Tools
         public static string LogDiagnosticIssue(this ILogger logger, Document document, LinePosition diagnosticPosition, Diagnostic diagnostic, bool changesAreErrors)
             => LogIssue(logger, document, diagnostic.Severity.ToString().ToLower(), diagnostic.Id, diagnosticPosition.Line + 1, diagnosticPosition.Character + 1, diagnostic.GetMessage(), changesAreErrors);
 
+        public static string LogDiagnosticIssue(this ILogger logger, TextDocument document, LinePosition diagnosticPosition, string severity, string diagnosticId, string message, bool changesAreErrors)
+            => LogIssue(logger, document, severity, diagnosticId, diagnosticPosition.Line + 1, diagnosticPosition.Character + 1, message, changesAreErrors);
+
         private static string LogIssue(ILogger logger, TextDocument document, string severity, string issueId, int lineNumber, int charNumber, string message, bool changesAreErrors)
         {
             var formattedMessage = IssueFormatter.FormatIssue(document, severity, issueId, lineNumber, charNumber, message);

@@ -392,6 +392,11 @@
         <target state="translated">'{0}' için içeri aktarmalar düzenlenemiyor. Belge çok karmaşık.</target>
         <note />
       </trans-unit>
+      <trans-unit id="Using_directive_is_unnecessary">
+        <source>Using directive is unnecessary.</source>
+        <target state="new">Using directive is unnecessary.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="Using_msbuildexe_located_in_0">
         <source>Using MSBuild.exe located in '{0}'.</source>
         <target state="translated">'{0}' içinde bulunan MSBuild.exe kullanılıyor.</target>

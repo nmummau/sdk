@@ -280,6 +280,118 @@ public class RazorFormatTests : SdkTest
         Assert.AreEqual(componentFile, report.RootElement[0].GetProperty("FilePath").GetString());
     }
 
+    private const string UnnecessaryUsingSeverity = """
+        root = true
+
+        [*.razor]
+        dotnet_diagnostic.IDE0005.severity = warning
+        """;
+
+    [TestMethod]
+    public void StyleVerifyNoChangesReportsUnnecessaryRazorUsings()
+    {
+        var projectFile = CreateProject(nameof(StyleVerifyNoChangesReportsUnnecessaryRazorUsings));
+        WriteFile(projectFile, ".editorconfig", UnnecessaryUsingSeverity);
+        var original = """
+            @using System.Text
+            <div></div>
+            """;
+        var componentFile = WriteFile(projectFile, "Component.razor", original);
+        Restore(projectFile);
+
+        var result = FormatWith("style", projectFile, "--verify-no-changes");
+
+        Assert.AreEqual(2, result.ExitCode, result.StdErr);
+        Assert.Contains("Component.razor(1,1): warning IDE0005", result.StdOut + result.StdErr);
+        Assert.AreEqual(original, File.ReadAllText(componentFile));
+    }
+
+    [TestMethod]
+    public void StyleRemovesUnnecessaryRazorUsings()
+    {
+        var projectFile = CreateProject(nameof(StyleRemovesUnnecessaryRazorUsings));
+        WriteFile(projectFile, ".editorconfig", UnnecessaryUsingSeverity);
+        WriteFile(projectFile, "_Imports.razor", "@using System.IO");
+        var componentFile = WriteFile(
+            projectFile,
+            "Component.razor",
+            """
+            @using System.Text
+            @using System.IO
+            @using System.Collections.Generic
+            <div></div>
+            @code {
+                private List<int> Values { get; } = new();
+            }
+            """);
+        Restore(projectFile);
+
+        var result = FormatWith("style", projectFile);
+
+        Assert.AreEqual(0, result.ExitCode, result.StdErr);
+        Assert.AreEqual(
+            NormalizeLineEndings(
+                """
+                @using System.Collections.Generic
+                <div></div>
+                @code {
+                    private List<int> Values { get; } = new();
+                }
+                """),
+            NormalizeLineEndings(File.ReadAllText(componentFile)));
+    }
+
+    [TestMethod]
+    public void StyleKeepsRazorUsingsNeededForComponents()
+    {
+        var projectFile = CreateProject(nameof(StyleKeepsRazorUsingsNeededForComponents));
+        WriteFile(projectFile, ".editorconfig", UnnecessaryUsingSeverity);
+        WriteFile(
+            projectFile,
+            Path.Combine("Widgets", "Widget.razor"),
+            """
+            @namespace RazorFormat.Widgets
+            <span>Widget</span>
+            """);
+        var componentFile = WriteFile(
+            projectFile,
+            "Component.razor",
+            """
+            @using RazorFormat.Widgets
+            <Widget />
+            """);
+        Restore(projectFile);
+
+        var result = FormatWith("style", projectFile, "--verify-no-changes");
+
+        Assert.AreEqual(0, result.ExitCode, result.StdErr);
+    }
+
+    [TestMethod]
+    public void StyleIgnoresRazorUsingsWithoutConfiguredSeverity()
+    {
+        var projectFile = CreateProject(nameof(StyleIgnoresRazorUsingsWithoutConfiguredSeverity));
+        WriteFile(projectFile, "Component.razor", "@using System.Text");
+        Restore(projectFile);
+
+        var result = FormatWith("style", projectFile, "--verify-no-changes");
+
+        Assert.AreEqual(0, result.ExitCode, result.StdErr);
+    }
+
+    [TestMethod]
+    public void StyleIgnoresRazorUsingsWhenDiagnosticsExcludeIDE0005()
+    {
+        var projectFile = CreateProject(nameof(StyleIgnoresRazorUsingsWhenDiagnosticsExcludeIDE0005));
+        WriteFile(projectFile, ".editorconfig", UnnecessaryUsingSeverity);
+        WriteFile(projectFile, "Component.razor", "@using System.Text");
+        Restore(projectFile);
+
+        var result = FormatWith("style", projectFile, "--verify-no-changes", "--diagnostics", "IDE0001");
+
+        Assert.AreEqual(0, result.ExitCode, result.StdErr);
+    }
+
     private string CreateProject(string identifier, bool multiTarget = false, bool includeNonRazorAdditionalFile = false)
     {
         var projectDirectory = TestAssetsManager.CreateTestDirectory(identifier: identifier).Path;
@@ -331,11 +443,14 @@ public class RazorFormatTests : SdkTest
     }
 
     private CommandResult Format(string workspaceFile, params string[] additionalArguments)
+        => FormatWith("whitespace", workspaceFile, additionalArguments);
+
+    private CommandResult FormatWith(string subcommand, string workspaceFile, params string[] additionalArguments)
     {
         var arguments = new List<string>
         {
             "format",
-            "whitespace",
+            subcommand,
             workspaceFile,
             "--no-restore",
         };

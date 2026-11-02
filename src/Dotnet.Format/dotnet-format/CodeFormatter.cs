@@ -15,6 +15,7 @@ namespace Microsoft.CodeAnalysis.Tools
     {
         private static readonly ImmutableArray<ICodeFormatter> s_codeFormatters = ImmutableArray.Create<ICodeFormatter>(
             new WhitespaceFormatter(),
+            new RazorUnnecessaryUsingsFormatter(),
             new RazorDocumentFormatter(),
             new FinalNewlineFormatter(),
             new EndOfLineFormatter(),
@@ -259,7 +260,8 @@ namespace Microsoft.CodeAnalysis.Tools
                     }
                 }
 
-                if (formatOptions.FixCategory.HasFlag(FixCategory.Whitespace))
+                if (formatOptions.FixCategory.HasFlag(FixCategory.Whitespace) ||
+                    formatOptions.FixCategory.HasFlag(FixCategory.CodeStyle))
                 {
                     foreach (var document in project.AdditionalDocuments)
                     {
